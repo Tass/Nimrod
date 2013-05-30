@@ -81,6 +81,13 @@ elif defined(windows):
     when reallyOsDealloc: VirtualFree(p, 0, MEM_RELEASE)
     #VirtualFree(p, size, MEM_DECOMMIT)
 
+elif defined(noDynamicAlloc):
+  # No implementation.
+  proc osAllocPages(size: int): pointer {.inline.} =
+    raise newException(EBase, "dynamic memory allocation not supported.")
+  proc osDeallocPages(p: pointer, size: int) {.inline.} =
+    raise newException(EBase, "dynamic memory allocation not supported.")
+  
 else: 
   {.error: "Port memory manager to your platform".}
 

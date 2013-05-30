@@ -83,8 +83,7 @@ proc rawWriteStackTrace(): string =
     result = "Traceback (most recent call last)\n"& auxWriteStackTrace(framePtr)
     framePtr = nil
 
-proc raiseException(e: ref E_Base, ename: cstring) {.
-    compilerproc, noStackFrame.} =
+proc raiseException(e: ref E_Base, ename: cstring) {.compilerproc, noStackFrame.} =
   e.name = ename
   if excHandler != nil:
     excHandler.exc = e

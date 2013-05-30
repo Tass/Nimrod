@@ -15,6 +15,13 @@
 # we don't use refcounts because that's a behaviour
 # the programmer may not want
 
+var
+  strDesc: TNimType
+
+strDesc.size = sizeof(string)
+strDesc.kind = tyString
+strDesc.flags = {ntfAcyclic}
+
 proc resize(old: int): int {.inline.} =
   if old <= 0: result = 4
   elif old < 65536: result = old * 2

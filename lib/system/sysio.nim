@@ -205,6 +205,7 @@ proc reopen(f: TFile, filename: string, mode: TFileMode = fmRead): bool =
   var p: pointer = freopen(filename, FormatOpen[mode], f)
   result = p != nil
 
+const pccHack: string = if defined(pcc): "_" else: "" # Hack for PCC
 proc fdopen(filehandle: TFileHandle, mode: cstring): TFile {.
   importc: pccHack & "fdopen", header: "<stdio.h>".}
 

@@ -10,7 +10,14 @@
 
 # Bare-bones implementation of some things for embedded targets.
 
-proc writeToStdErr(msg: CString) = write(stdout, msg)
+proc writeToStdErr(msg: CString) =
+  # TODO
+
+template newException*(exceptn: typeDesc, message: string): expr =
+  var
+    e: exceptn
+  e.msg = message
+  e
 
 proc chckIndx(i, a, b: int): int {.inline, compilerproc.}
 proc chckRange(i, a, b: int): int {.inline, compilerproc.}
@@ -41,11 +48,6 @@ proc reraiseException() {.compilerRtl.} =
   writeToStdErr("reraise not supported")
 
 proc WriteStackTrace() = nil
-
-proc setControlCHook(hook: proc () {.noconv.}) =
-  # ugly cast, but should work on all architectures:
-  type TSignalHandler = proc (sig: cint) {.noconv.}
-  c_signal(SIGINT, cast[TSignalHandler](hook))
 
 proc raiseRangeError(val: biggestInt) {.compilerproc, noreturn, noinline.} =
   writeToStdErr("value out of range")
@@ -78,10 +80,12 @@ proc chckRangeF(x, a, b: float): float =
   if x >= a and x <= b:
     return x
   else:
-    raise newException(EOutOfRange, "value " & $x & " out of range")
+    # Add value somehow
+    raise newException(EOutOfRange, "value out of range")
 
 proc chckNil(p: pointer) =
-  if p == nil: c_raise(SIGSEGV)
+  if p == nil:
+    raise newException(EBase, "null pointer found")
 
 proc chckObj(obj, subclass: PNimType) {.compilerproc.} =
   # checks if obj is of type subclass:

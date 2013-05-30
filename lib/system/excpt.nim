@@ -17,15 +17,19 @@ var
 template stackTraceNL: expr =
   (if IsNil(stackTraceNewLine): "\n" else: stackTraceNewLine)
 
-when not defined(windows) or not defined(guiapp):
+when not defined(windows) or not defined(guiapp) and hostOS != "standalone":
   proc writeToStdErr(msg: CString) = write(stdout, msg)
 
-else:
+elif defined(windows):
   proc MessageBoxA(hWnd: cint, lpText, lpCaption: cstring, uType: int): int32 {.
     header: "<windows.h>", nodecl.}
 
   proc writeToStdErr(msg: CString) =
     discard MessageBoxA(0, msg, nil, 0)
+else:
+  proc writeToStdErr(msg: CString) =
+    # discard.
+    nil
 
 proc registerSignalHandler()
 
