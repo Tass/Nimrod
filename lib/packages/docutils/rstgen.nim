@@ -461,9 +461,9 @@ proc indentToLevel(level: var int, newLevel: int): string =
   if level == newLevel:
     return
   if newLevel > level:
-    result = repeatStr(newLevel - level, "<ul>")
+    result = repeat("<ul>", newLevel - level)
   else:
-    result = repeatStr(level - newLevel, "</ul>")
+    result = repeat("</ul>", level - newLevel)
   level = newLevel
 
 proc generateDocumentationTOC(entries: seq[TIndexEntry]): string =
@@ -681,7 +681,14 @@ proc renderHeadline(d: PDoc, n: PRstNode, result: var string) =
   var tmp = ""
   for i in countup(0, len(n) - 1): renderRstToOut(d, n.sons[i], tmp)
   d.currentSection = tmp
-  var refname = rstnodeToRefname(n)
+  # Find the last higher level section for unique reference name
+  var sectionPrefix = ""
+  for i in countdown(d.tocPart.high, 0):
+    let n2 = d.tocPart[i].n
+    if n2.level < n.level:
+      sectionPrefix = rstnodeToRefname(n2) & "-"
+      break
+  var refname = sectionPrefix & rstnodeToRefname(n)
   if d.hasToc:
     var length = len(d.tocPart)
     setLen(d.tocPart, length + 1)
@@ -701,7 +708,7 @@ proc renderHeadline(d: PDoc, n: PRstNode, result: var string) =
   # Generate index entry using spaces to indicate TOC level for the output HTML.
   assert n.level >= 0
   setIndexTerm(d, refname, tmp.stripTOCHTML,
-    repeatChar(max(0, n.level), ' ') & tmp)
+    spaces(max(0, n.level)) & tmp)
 
 proc renderOverline(d: PDoc, n: PRstNode, result: var string) = 
   if d.meta[metaTitle].len == 0:
@@ -1145,7 +1152,7 @@ proc formatNamedVars*(frmt: string, varnames: openArray[string],
 proc defaultConfig*(): StringTableRef =
   ## Returns a default configuration for embedded HTML generation.
   ##
-  ## The returned ``StringTableRef`` contains the paramters used by the HTML
+  ## The returned ``StringTableRef`` contains the parameters used by the HTML
   ## engine to build the final output. For information on what these parameters
   ## are and their purpose, please look up the file ``config/nimdoc.cfg``
   ## bundled with the compiler.

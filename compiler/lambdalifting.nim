@@ -15,7 +15,7 @@ import
 
 discard """
   The basic approach is that captured vars need to be put on the heap and
-  that the calling chain needs to be explicitely modelled. Things to consider:
+  that the calling chain needs to be explicitly modelled. Things to consider:
   
   proc a =
     var v = 0
@@ -583,7 +583,7 @@ proc searchForInnerProcs(o: POuterContext, n: PNode, env: PEnv) =
       elif it.kind == nkIdentDefs:
         var L = sonsLen(it)
         if it.sons[0].kind == nkSym:
-          # this can be false for recursive invokations that already
+          # this can be false for recursive invocations that already
           # transformed it into 'env.varName':
           env.vars.incl(it.sons[0].sym.id)
         searchForInnerProcs(o, it.sons[L-1], env)
@@ -719,7 +719,7 @@ proc outerProcSons(o: POuterContext, n: PNode, it: TIter) =
     let x = transformOuterProc(o, n.sons[i], it)
     if x != nil: n.sons[i] = x
 
-proc liftIterSym(n: PNode): PNode =
+proc liftIterSym(n: PNode; owner: PSym): PNode =
   # transforms  (iter)  to  (let env = newClosure[iter](); (iter, env))
   let iter = n.sym
   assert iter.kind == skClosureIterator
@@ -727,7 +727,7 @@ proc liftIterSym(n: PNode): PNode =
   result = newNodeIT(nkStmtListExpr, n.info, n.typ)
   
   let hp = getHiddenParam(iter)
-  let env = newSym(skLet, iter.name, iter.owner, iter.info)
+  let env = newSym(skLet, iter.name, owner, n.info)
   env.typ = hp.typ
   env.flags = hp.flags
   var v = newNodeI(nkVarSection, n.info)
@@ -867,7 +867,7 @@ proc transformOuterProc(o: POuterContext, n: PNode; it: TIter): PNode =
       # XXX why doesn't this work?
       var closure = PEnv(idTableGet(o.lambdasToEnv, local))
       if closure.isNil:
-        return liftIterSym(n)
+        return liftIterSym(n, o.fn)
       else:
         let createdVar = generateIterClosureCreation(o, closure,
                                                      closure.attachedNode)
@@ -999,7 +999,7 @@ proc liftForLoop*(body: PNode): PNode =
   # proc invoke(iter: iterator(): int) =
   #   for x in iter(): echo x
   #
-  # --> When to create the closure? --> for the (count) occurence!
+  # --> When to create the closure? --> for the (count) occurrence!
   discard """
       for i in foo(): ...
 

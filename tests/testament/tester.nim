@@ -30,6 +30,7 @@ Arguments:
   arguments are passed to the compiler
 Options:
   --print                   also print results to the console
+  --failing                 only show failing/ignored tests
 """ % resultsFile
 
 type
@@ -48,7 +49,7 @@ type
 # ----------------------------------------------------------------------------
 
 let
-  pegLineError = 
+  pegLineError =
     peg"{[^(]*} '(' {\d+} ', ' \d+ ') ' ('Error') ':' \s* {.*}"
   pegOtherError = peg"'Error:' \s* {.*}"
   pegSuccess = peg"'Hint: operation successful'.*"
@@ -64,7 +65,9 @@ proc callCompiler(cmdTemplate, filename, options: string,
   var suc = ""
   var err = ""
   var x = newStringOfCap(120)
+  result.nimout = ""
   while outp.readLine(x.TaintedString) or running(p):
+    result.nimout.add(x & "\n")
     if x =~ pegOfInterest:
       # `err` should contain the last error/warning message
       err = x
@@ -105,14 +108,16 @@ proc addResult(r: var TResults, test: TTest,
                expected, given: string, success: TResultEnum) =
   let name = test.name.extractFilename & test.options
   backend.writeTestResult(name = name,
-                          category = test.cat.string, 
+                          category = test.cat.string,
                           target = $test.target,
                           action = $test.action,
                           result = $success,
                           expected = expected,
                           given = given)
   r.data.addf("$#\t$#\t$#\t$#", name, expected, given, $success)
-  if success notin {reSuccess, reIgnored}:
+  if success == reIgnored:
+    styledEcho styleBright, name, fgYellow, " [", $success, "]"
+  elif success != reSuccess:
     styledEcho styleBright, name, fgRed, " [", $success, "]"
     echo"Expected:"
     styledEcho styleBright, expected
@@ -134,27 +139,52 @@ proc cmpMsgs(r: var TResults, expected, given: TSpec, test: TTest) =
 proc generatedFile(path, name: string, target: TTarget): string =
   let ext = targetToExt[target]
   result = path / "nimcache" /
-    (if target == targetJS: path.splitPath.tail & "_" else: "") &
+    (if target == targetJS: path.splitPath.tail & "_" else: "compiler_") &
     name.changeFileExt(ext)
 
 proc codegenCheck(test: TTest, check: string, given: var TSpec) =
-  if check.len > 0:
-    try:
-      let (path, name, ext2) = test.name.splitFile
-      let genFile = generatedFile(path, name, test.target)
-      echo genFile
-      let contents = readFile(genFile).string
-      if contents.find(check.peg) < 0:
+  try:
+    let (path, name, ext2) = test.name.splitFile
+    let genFile = generatedFile(path, name, test.target)
+    let contents = readFile(genFile).string
+    if check[0] == '\\':
+      # little hack to get 'match' support:
+      if not contents.match(check.peg):
         given.err = reCodegenFailure
-    except ValueError:
-      given.err = reInvalidPeg
-    except IOError:
-      given.err = reCodeNotFound
+    elif contents.find(check.peg) < 0:
+      given.err = reCodegenFailure
+  except ValueError:
+    given.err = reInvalidPeg
+    echo getCurrentExceptionMsg()
+  except IOError:
+    given.err = reCodeNotFound
+
+proc nimoutCheck(test: TTest; expectedNimout: string; given: var TSpec) =
+  let exp = expectedNimout.strip.replace("\C\L", "\L")
+  let giv = given.nimout.strip.replace("\C\L", "\L")
+  if exp notin giv:
+    given.err = reMsgsDiffer
 
 proc makeDeterministic(s: string): string =
   var x = splitLines(s)
   sort(x, system.cmp)
   result = join(x, "\n")
+
+proc compilerOutputTests(test: TTest, given: var TSpec, expected: TSpec;
+                         r: var TResults) =
+  var expectedmsg: string = ""
+  var givenmsg: string = ""
+  if given.err == reSuccess:
+    if expected.ccodeCheck.len > 0:
+      codegenCheck(test, expected.ccodeCheck, given)
+      expectedmsg = expected.ccodeCheck
+      givenmsg = given.msg
+    if expected.nimout.len > 0:
+      expectedmsg = expected.nimout
+      givenmsg = given.nimout.strip
+      nimoutCheck(test, expectedmsg, given)
+  if given.err == reSuccess: inc(r.passed)
+  r.addResult(test, expectedmsg, givenmsg, given.err)
 
 proc testSpec(r: var TResults, test: TTest) =
   # major entry point for a single test
@@ -168,12 +198,9 @@ proc testSpec(r: var TResults, test: TTest) =
   else:
     case expected.action
     of actionCompile:
-      var given = callCompiler(expected.cmd, test.name, test.options,
-                               test.target)
-      if given.err == reSuccess:
-        codegenCheck(test, expected.ccodeCheck, given)
-      r.addResult(test, "", given.msg, given.err)
-      if given.err == reSuccess: inc(r.passed)
+      var given = callCompiler(expected.cmd, test.name,
+        test.options & " --hint[Path]:off --hint[Processing]:off", test.target)
+      compilerOutputTests(test, given, expected, r)
     of actionRun:
       var given = callCompiler(expected.cmd, test.name, test.options,
                                test.target)
@@ -203,10 +230,7 @@ proc testSpec(r: var TResults, test: TTest) =
             if bufB != strip(expected.outp):
               if not (expected.substr and expected.outp in bufB):
                 given.err = reOutputsDiffer
-            if given.err == reSuccess:
-              codeGenCheck(test, expected.ccodeCheck, given)
-            if given.err == reSuccess: inc(r.passed)
-            r.addResult(test, expected.outp, buf.string, given.err)
+            compilerOutputTests(test, given, expected, r)
         else:
           r.addResult(test, expected.outp, "executable not found", reExeNotFound)
     of actionReject:
@@ -242,11 +266,13 @@ proc main() =
 
   backend.open()
   var optPrintResults = false
+  var optFailing = false
   var p = initOptParser()
   p.next()
-  if p.kind == cmdLongoption:
+  while p.kind == cmdLongoption:
     case p.key.string.normalize
     of "print", "verbose": optPrintResults = true
+    of "failing": optFailing = true
     else: quit Usage
     p.next()
   if p.kind != cmdArgument: quit Usage
@@ -270,7 +296,7 @@ proc main() =
   of "html":
     var commit = 0
     discard parseInt(p.cmdLineRest.string, commit)
-    generateHtml(resultsFile, commit)
+    generateHtml(resultsFile, commit, optFailing)
     generateJson(jsonFile, commit)
   else:
     quit Usage

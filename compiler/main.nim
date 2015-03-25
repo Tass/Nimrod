@@ -58,11 +58,11 @@ proc commandCompileToC =
   registerPass(cgenPass)
   rodPass()
   #registerPass(cleanupPass())
-  
+
   compileProject()
   cgenWriteModules()
   if gCmd != cmdRun:
-    extccomp.callCCompiler(changeFileExt(gProjectFull, ""))
+    extccomp.callCCompiler(if gProjectName == "-": "stdinfile" else: changeFileExt(gProjectFull, ""))
 
   if isServing:
     # caas will keep track only of the compilation commands
@@ -251,7 +251,6 @@ proc mainCommand* =
     commandCompileToC()
   of "cpp", "compiletocpp":
     gCmd = cmdCompileToCpp
-    if cCompiler == ccGcc: setCC("gcc")
     defineSymbol("cpp")
     commandCompileToC()
   of "objc", "compiletooc":
@@ -364,7 +363,9 @@ proc mainCommand* =
       gVerbosity > 0):
     rawMessage(hintSuccessX, [$gLinesCompiled,
                formatFloat(epochTime() - gLastCmdTime, ffDecimal, 3),
-               formatSize(getTotalMem())])
+               formatSize(getTotalMem()),
+               if condSyms.isDefined("release"): "Release Build"
+               else: "Debug Build"])
 
   when PrintRopeCacheStats:
     echo "rope cache stats: "

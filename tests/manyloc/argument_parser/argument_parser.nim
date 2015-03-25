@@ -302,7 +302,7 @@ template build_specification_lookup():
   ## Returns the table used to keep pointers to all of the specifications.
   var result {.gensym.}: OrderedTable[string, ptr Tparameter_specification]
   result = initOrderedTable[string, ptr Tparameter_specification](
-    nextPowerOfTwo(expected.len))
+    tables.rightSize(expected.len))
   for i in 0..expected.len-1:
     for param_to_detect in expected[i].names:
       if result.hasKey(param_to_detect):
@@ -471,7 +471,7 @@ proc build_help*(expected: seq[Tparameter_specification] = @[],
   let width = prefixes.map(proc (x: string): int = 3 + len(x)).max
 
   for line in zip(prefixes, helps):
-    result.add(line.a & repeatChar(width - line.a.len) & line.b)
+    result.add(line.a & spaces(width - line.a.len) & line.b)
 
 
 proc echo_help*(expected: seq[Tparameter_specification] = @[],

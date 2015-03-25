@@ -221,6 +221,7 @@ proc makeTypeSymNode*(c: PContext, typ: PType, info: TLineInfo): PNode =
 
 proc makeTypeFromExpr*(c: PContext, n: PNode): PType =
   result = newTypeS(tyFromExpr, c)
+  assert n != nil
   result.n = n
 
 proc newTypeWithSons*(c: PContext, kind: TTypeKind,
@@ -306,6 +307,9 @@ proc markIndirect*(c: PContext, s: PSym) {.inline.} =
 
 proc illFormedAst*(n: PNode) =
   globalError(n.info, errIllFormedAstX, renderTree(n, {renderNoComments}))
+
+proc illFormedAstLocal*(n: PNode) =
+  localError(n.info, errIllFormedAstX, renderTree(n, {renderNoComments}))
 
 proc checkSonsLen*(n: PNode, length: int) = 
   if sonsLen(n) != length: illFormedAst(n)

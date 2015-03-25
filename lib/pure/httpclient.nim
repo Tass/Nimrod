@@ -385,13 +385,16 @@ proc request*(url: string, httpMethod: string, extraHeaders = "",
               userAgent = defUserAgent, proxy: Proxy = nil): Response =
   ## | Requests ``url`` with the custom method string specified by the
   ## | ``httpMethod`` parameter.
-  ## | Extra headers can be specified and must be seperated by ``\c\L``
+  ## | Extra headers can be specified and must be separated by ``\c\L``
   ## | An optional timeout can be specified in miliseconds, if reading from the
   ## server takes longer than specified an ETimeout exception will be raised.
   var r = if proxy == nil: parseUri(url) else: proxy.url
   var headers = substr(httpMethod, len("http"))
+  # TODO: Use generateHeaders further down once it supports proxies.
   if proxy == nil:
-    headers.add(" " & r.path)
+    headers.add ' '
+    if r.path[0] != '/': headers.add '/'
+    headers.add(r.path)
     if r.query.len > 0:
       headers.add("?" & r.query)
   else:
@@ -436,7 +439,7 @@ proc request*(url: string, httpMethod = httpGET, extraHeaders = "",
               body = "", sslContext = defaultSSLContext, timeout = -1,
               userAgent = defUserAgent, proxy: Proxy = nil): Response =
   ## | Requests ``url`` with the specified ``httpMethod``.
-  ## | Extra headers can be specified and must be seperated by ``\c\L``
+  ## | Extra headers can be specified and must be separated by ``\c\L``
   ## | An optional timeout can be specified in miliseconds, if reading from the
   ## server takes longer than specified an ETimeout exception will be raised.
   result = request(url, $httpMethod, extraHeaders, body, sslContext, timeout, 
@@ -567,9 +570,12 @@ proc downloadFile*(url: string, outputFilename: string,
 
 proc generateHeaders(r: Uri, httpMethod: string,
                      headers: StringTableRef): string =
+  # TODO: Use this in the blocking HttpClient once it supports proxies.
   result = substr(httpMethod, len("http"))
   # TODO: Proxies
-  result.add(" " & r.path)
+  result.add ' '
+  if r.path[0] != '/': result.add '/'
+  result.add(r.path)
   if r.query.len > 0:
     result.add("?" & r.query)
   result.add(" HTTP/1.1\c\L")

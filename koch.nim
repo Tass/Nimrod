@@ -40,8 +40,8 @@ Options:
   --help, -h               shows this help and quits
 Possible Commands:
   boot [options]           bootstraps with given command line options
-  install [bindir]         installs to given directory
-  clean                    cleans Nimrod project; removes generated files
+  install [bindir]         installs to given directory; Unix only!
+  clean                    cleans Nim project; removes generated files
   web [options]            generates the website and the full documentation
   website [options]        generates only the website
   csource [options]        builds the C sources for installation
@@ -59,7 +59,7 @@ Boot options:
   -d:useGnuReadline        use the GNU readline library for interactive mode
                            (not needed on Windows)
   -d:nativeStacktrace      use native stack traces (only for Mac OS X or Linux)
-  -d:noCaas                build Nimrod without CAAS support
+  -d:noCaas                build Nim without CAAS support
   -d:avoidTimeMachine      only for Mac OS X, excludes nimcache dir from backups
 Web options:
   --googleAnalytics:UA-... add the given google analytics code to the docs. To
@@ -77,9 +77,9 @@ proc findNim(): string =
   # assume there is a symlink to the exe or something:
   return nim
 
-proc exec(cmd: string) =
+proc exec(cmd: string, errorcode: int = QuitFailure) =
   echo(cmd)
-  if execShellCmd(cmd) != 0: quit("FAILURE")
+  if execShellCmd(cmd) != 0: quit("FAILURE", errorcode)
 
 proc tryExec(cmd: string): bool = 
   echo(cmd)
@@ -97,13 +97,13 @@ const
   compileNimInst = "-d:useLibzipSrc tools/niminst/niminst"
 
 proc csource(args: string) = 
-  exec("$4 cc $1 -r $3 --var:version=$2 --var:mingw=none csource compiler/nim.ini $1" %
+  exec("$4 cc $1 -r $3 --var:version=$2 --var:mingw=none csource --main:compiler/nim.nim compiler/installer.ini $1" %
        [args, VersionAsString, compileNimInst, findNim()])
 
 proc zip(args: string) =
-  exec("$3 cc -r $2 --var:version=$1 --var:mingw=none scripts compiler/nim.ini" %
+  exec("$3 cc -r $2 --var:version=$1 --var:mingw=none --main:compiler/nim.nim scripts compiler/installer.ini" %
        [VersionAsString, compileNimInst, findNim()])
-  exec("$# --var:version=$# --var:mingw=none zip compiler/nim.ini" %
+  exec("$# --var:version=$# --var:mingw=none --main:compiler/nim.nim zip compiler/installer.ini" %
        ["tools/niminst/niminst".exe, VersionAsString])
 
 proc buildTool(toolname, args: string) =
@@ -121,26 +121,23 @@ proc nsis(args: string) =
         " nsis compiler/nim") % [VersionAsString, $(sizeof(pointer)*8)])
 
 proc install(args: string) = 
-  exec("$# cc -r $# --var:version=$# --var:mingw=none scripts compiler/nim.ini" %
+  exec("$# cc -r $# --var:version=$# --var:mingw=none --main:compiler/nim.nim scripts compiler/installer.ini" %
        [findNim(), compileNimInst, VersionAsString])
   exec("sh ./install.sh $#" % args)
 
 proc web(args: string) =
-  exec("$# cc -r tools/nimweb.nim $# web/nim --putenv:nimversion=$#" %
+  exec("$# cc -r tools/nimweb.nim $# web/website.ini --putenv:nimversion=$#" %
        [findNim(), args, VersionAsString])
 
 proc website(args: string) =
-  exec("$# cc -r tools/nimweb.nim $# --website web/nim --putenv:nimversion=$#" %
+  exec("$# cc -r tools/nimweb.nim $# --website web/website.ini --putenv:nimversion=$#" %
        [findNim(), args, VersionAsString])
 
 proc pdf(args="") =
-  exec("$# cc -r tools/nimweb.nim $# --pdf web/nim --putenv:nimversion=$#" %
+  exec("$# cc -r tools/nimweb.nim $# --pdf web/website.ini --putenv:nimversion=$#" %
        [findNim(), args, VersionAsString])
 
 # -------------- boot ---------------------------------------------------------
-
-const
-  bootOptions = "" # options to pass to the bootstrap process
 
 proc findStartNim: string = 
   # we try several things before giving up:
@@ -180,11 +177,13 @@ proc thVersion(i: int): string =
 proc boot(args: string) =
   var output = "compiler" / "nim".exe
   var finalDest = "bin" / "nim".exe
+  # default to use the 'c' command:
+  let bootOptions = if args.len == 0 or args.startsWith("-"): "c" else: ""
   
   copyExe(findStartNim(), 0.thVersion)
   for i in 0..2:
     echo "iteration: ", i+1
-    exec i.thVersion & " c $# $# compiler" / "nim.nim" % [bootOptions, args]
+    exec i.thVersion & " $# $# compiler" / "nim.nim" % [bootOptions, args]
     if sameFileContent(output, i.thVersion):
       copyExe(output, finalDest)
       echo "executables are equal: SUCCESS!"
@@ -270,20 +269,20 @@ when defined(withUpdate):
           echo("Fetching updates from repo...")
           var pullout = execCmdEx(git & " pull origin master")
           if pullout[1] != 0:
-            quit("An error has occured.")
+            quit("An error has occurred.")
           else:
             if pullout[0].startsWith("Already up-to-date."):
               quit("No new changes fetched from the repo. " &
                    "Local branch must be ahead of it. Exiting...")
       else:
-        quit("An error has occured.")
+        quit("An error has occurred.")
       
     else:
       echo("No repo or executable found!")
       when defined(haveZipLib):
         echo("Falling back.. Downloading source code from repo...")
         # use dom96's httpclient to download zip
-        downloadFile("https://github.com/Araq/Nimrod/zipball/master",
+        downloadFile("https://github.com/Araq/Nim/zipball/master",
                      thisDir / "update.zip")
         try:
           echo("Extracting source code from archive...")
@@ -321,7 +320,7 @@ proc winRelease() =
 
   run7z("win32", "bin/nim.exe", "bin/c2nim.exe", "bin/nimgrep.exe",
         "bin/nimfix.exe",
-        "bin/babel.exe", "bin/*.dll",
+        "bin/nimble.exe", "bin/*.dll",
         "config", "dist/*.dll", "examples", "lib",
         "readme.txt", "contributors.txt", "copying.txt")
   # second step: XXX build 64 bit version
@@ -341,12 +340,14 @@ proc tests(args: string) =
 proc temp(args: string) =
   var output = "compiler" / "nim".exe
   var finalDest = "bin" / "nim_temp".exe
-  exec("nim c compiler" / "nim")
+  # 125 is the magic number to tell git bisect to skip the current
+  # commit.
+  exec("nim c compiler" / "nim", 125)
   copyExe(output, finalDest)
   if args.len > 0: exec(finalDest & " " & args)
 
 proc showHelp() = 
-  quit(HelpText % [VersionAsString & repeatChar(44-len(VersionAsString)), 
+  quit(HelpText % [VersionAsString & spaces(44-len(VersionAsString)), 
                    CompileDate, CompileTime], QuitSuccess)
 
 var op = initOptParser()
@@ -358,7 +359,7 @@ of cmdArgument:
   of "boot": boot(op.cmdLineRest)
   of "clean": clean(op.cmdLineRest)
   of "web": web(op.cmdLineRest)
-  of "website": website(op.cmdLineRest)
+  of "website": website(op.cmdLineRest & " --googleAnalytics:UA-48159761-1")
   of "web0":
     # undocumented command for Araq-the-merciful:
     web(op.cmdLineRest & " --googleAnalytics:UA-48159761-1")

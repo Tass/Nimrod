@@ -3,8 +3,8 @@
 ===========================================
 
 
-General
-=======
+General FAQ
+===========
 
 
 .. container:: standout
@@ -105,12 +105,13 @@ General
   --------------------------
 
   - Nim IDE: https://github.com/nim-lang/Aporia
-  - Emacs: https://github.com/Tass/nim-mode
+  - Emacs: https://github.com/reactormonk/nim-mode
   - Vim: https://github.com/zah/nimrod.vim/
   - Scite: Included
-  - Gedit: The `Aporia .lang file <https://github.com/nim-lang/Aporia/blob/master/share/gtksourceview-2.0/language-specs/nimrod.lang>`_
+  - Gedit: The `Aporia .lang file <https://github.com/nim-lang/Aporia/blob/master/share/gtksourceview-2.0/language-specs/nim.lang>`_
   - jEdit: https://github.com/exhu/nimrod-misc/tree/master/jedit
   - TextMate: Available in bundle installer (`Repository <https://github.com/textmate/nim.tmbundle>`_)
+  - Sublime Text: Available via Package Control (`Repository <https://github.com/Varriount/NimLime>`_)
 
 
 .. container:: standout
@@ -124,8 +125,8 @@ General
   keyword.
 
 
-Compilation
-===========
+Compilation FAQ
+===============
 
 .. container:: standout
 
@@ -149,16 +150,16 @@ Compilation
   Edit the ``config/nim.cfg`` file.
   Change the value of the ``cc`` variable to one of the following:
 
-  ==============  ============================================
-  Abbreviation    C/C++ Compiler
-  ==============  ============================================
-  ``vcc``         Microsoft's Visual C++
-  ``gcc``         Gnu C
-  ``llvm_gcc``    LLVM-GCC compiler
-  ``icc``         Intel C++ compiler
-  ``clang``       Clang compiler
-  ``ucc``         Generic UNIX C compiler
-  ==============  ============================================
+  ================  ============================================
+  **Abbreviation**  **C/C++ Compiler**
+  ================  ============================================
+  ``vcc``           Microsoft's Visual C++
+  ``gcc``           Gnu C
+  ``llvm_gcc``      LLVM-GCC compiler
+  ``icc``           Intel C++ compiler
+  ``clang``         Clang compiler
+  ``ucc``           Generic UNIX C compiler
+  ================  ============================================
 
   Other C compilers are not officially supported, but might work too.
 

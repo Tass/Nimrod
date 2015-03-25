@@ -99,8 +99,8 @@ macro updated(e: expr): expr {.immediate.} =
 proc updatedDate(year, month, day: string): string =
   ## wrapper around the update macro with easy input.
   result = updated("$1-$2-$3T00:00:00Z" % [year,
-    repeatStr(2 - len(month), "0") & month,
-    repeatStr(2 - len(day), "0") & day])
+    repeat("0", 2 - len(month)) & month,
+    repeat("0", 2 - len(day)) & day])
 
 macro entry(e: expr): expr {.immediate.} =
   ## generates the rss xml ``entry`` element.
@@ -319,7 +319,7 @@ proc buildAddDoc(c: var TConfigData, destPath: string) =
   # build additional documentation (without the index):
   var commands = newSeq[string](c.webdoc.len)
   for i, doc in pairs(c.webdoc):
-    commands[i] = "nim doc $# --docSeeSrcUrl:$#/$#/$# -o:$# $#" %
+    commands[i] = "nim doc2 $# --docSeeSrcUrl:$#/$#/$# -o:$# $#" %
       [c.nimArgs, c.gitRepo, c.gitCommit, doc.pathPart,
       destPath / changeFileExt(splitFile(doc).name, "html"), doc]
   mexec(commands, c.numProcessors)

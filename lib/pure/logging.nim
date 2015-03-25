@@ -8,7 +8,7 @@
 #
 
 ## This module implements a simple logger. It has been designed to be as simple
-## as possible to avoid bloat, if this library does not fullfill your needs,
+## as possible to avoid bloat, if this library does not fulfill your needs,
 ## write your own.
 ## 
 ## Format strings support the following variables which must be prefixed with
@@ -186,7 +186,7 @@ proc newRollingFileLogger*(filename = defaultFilename(),
   ## a new log file will be started and the old will be renamed.
   new(result)
   result.levelThreshold = levelThreshold
-  result.fmtStr = defaultFmtStr
+  result.fmtStr = fmtStr
   result.maxLines = maxLines
   result.f = open(filename, mode)
   result.curLine = 0
@@ -217,7 +217,7 @@ method log*(logger: RollingFileLogger, level: Level,
       logger.curLine = 0
       logger.f = open(logger.baseName, logger.baseMode)
     
-    writeln(logger.f, LevelNames[level], " ", frmt % args)
+    writeln(logger.f, LevelNames[level], " ",substituteLog(logger.fmtStr), frmt % args)
     logger.curLine.inc
 
 # --------

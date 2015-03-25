@@ -39,6 +39,7 @@ when declared(stdout):
 
 when not defined(ECMAScript):
   import terminal
+  system.addQuitProc(resetAttributes)
 
 type
   TestStatus* = enum OK, FAILED
@@ -46,7 +47,7 @@ type
 
 {.deprecated: [TTestStatus: TestStatus, TOutputLevel: OutputLevel]}
 
-var 
+var
   abortOnError* {.threadvar.}: bool
   outputLevel* {.threadvar.}: OutputLevel
   colorOutput* {.threadvar.}: bool
@@ -143,7 +144,7 @@ macro check*(conditions: stmt): stmt {.immediate.} =
     when compiles(string($value)):
       checkpoint(name & " was " & $value)
 
-  proc inspectArgs(exp: PNimrodNode) =
+  proc inspectArgs(exp: NimNode) =
     for i in 1 .. <exp.len:
       if exp[i].kind notin nnkLiterals:
         inc counter
@@ -201,7 +202,7 @@ template require*(conditions: stmt): stmt {.immediate, dirty.} =
 macro expect*(exceptions: varargs[expr], body: stmt): stmt {.immediate.} =
   let exp = callsite()
   template expectBody(errorTypes, lineInfoLit: expr,
-                      body: stmt): PNimrodNode {.dirty.} =
+                      body: stmt): NimNode {.dirty.} =
     try:
       body
       checkpoint(lineInfoLit & ": Expect Failed, no exception was thrown.")
@@ -234,5 +235,3 @@ if envOutLvl.len > 0:
     if $opt == envOutLvl:
       outputLevel = opt
       break
-
-system.addQuitProc(resetAttributes)
